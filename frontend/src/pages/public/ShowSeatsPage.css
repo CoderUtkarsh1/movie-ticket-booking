@@ -1,0 +1,59 @@
+.seat-selection-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.seat-map-section {
+  padding: 1.5rem;
+}
+
+.booking-summary-section {
+  padding: 1.5rem;
+  position: sticky;
+  top: 100px;
+}
+
+.booking-summary-section h3 {
+  margin: 0 0 1rem 0;
+}
+
+.divider {
+  border: 0;
+  height: 1px;
+  background: var(--glass-border);
+  margin: 1rem 0;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+}
+
+.total-row {
+  color: var(--text-main);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1rem;
+}
+
+.total-amount {
+  color: var(--primary);
+}
+
+.w-100 {
+  width: 100%;
+}
+
+@media (max-width: 992px) {
+  .seat-selection-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .booking-summary-section {
+    position: static;
+  }
+}

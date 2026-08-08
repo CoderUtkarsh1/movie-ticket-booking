@@ -1,0 +1,87 @@
+.notifications-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.notification-item.unread {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.notification-item.unread:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.notification-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.unread .notification-icon {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.notification-content {
+  flex-grow: 1;
+}
+
+.notification-message {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
+.unread .notification-message {
+  font-weight: 600;
+}
+
+.notification-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.notification-booking-ref {
+  font-family: monospace;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0 0.5rem;
+  border-radius: 4px;
+}
+
+.unread-dot {
+  width: 10px;
+  height: 10px;
+  background-color: var(--primary);
+  border-radius: 50%;
+  position: absolute;
+  right: 1.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  box-shadow: 0 0 10px var(--primary);
+}

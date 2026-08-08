@@ -1,0 +1,21 @@
+# Test profile — disables external dependencies
+spring:
+  cloud:
+    config:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+eureka:
+  client:
+    enabled: false
+
+seat:
+  lock:
+    ttl: 300

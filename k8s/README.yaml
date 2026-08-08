@@ -1,0 +1,19 @@
+# =====================================================
+# Deploy All — Movie Ticket Booking to K8s
+# Usage: kubectl apply -f k8s/deploy-all.yaml
+# OR run: .\k8s\deploy.ps1
+# =====================================================
+# Deploy order matters! Infrastructure first, then services.
+#
+# Step 1: kubectl apply -f k8s/namespace.yaml
+# Step 2: kubectl apply -f k8s/secrets.yaml
+# Step 3: kubectl apply -f k8s/configmap.yaml
+# Step 4: kubectl apply -f k8s/infra/
+# Step 5: Wait 60s for infra to be ready
+# Step 6: kubectl apply -f k8s/services/config-server.yaml
+# Step 7: Wait 30s for config-server
+# Step 8: kubectl apply -f k8s/services/eureka-server.yaml
+# Step 9: Wait 30s for eureka
+# Step 10: kubectl apply -f k8s/services/api-gateway.yaml
+# Step 11: kubectl apply -f k8s/services/business-services.yaml
+# Step 12: kubectl apply -f k8s/services/frontend.yaml

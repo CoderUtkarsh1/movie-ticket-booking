@@ -1,0 +1,882 @@
+# =====================================================
+# DEPLOY ALL — Single file to deploy entire platform
+# Usage: kubectl apply -f k8s/deploy-all.yaml
+# =====================================================
+# WARNING: This deploys everything at once. Kubernetes does NOT
+# guarantee order. For order-aware deployment, use: .\k8s\deploy.ps1
+# =====================================================
+
+# ==================== NAMESPACE ====================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: movie-booking
+  labels:
+    app.kubernetes.io/part-of: movie-ticket-booking
+
+---
+# ==================== CONFIG MAP ====================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: movie-booking
+data:
+  DB_HOST: "sqlserver"
+  DB_PORT: "1433"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  MONGO_HOST: "mongodb"
+  MONGO_PORT: "27017"
+  EUREKA_URL: "http://eureka-server:8761/eureka/"
+
+---
+# ==================== SECRETS ====================
+# NOTE: Create secrets MANUALLY before applying this file:
+#   kubectl create secret generic app-secrets \
+#     --from-literal=DB_PASSWORD=YourPassword \
+#     --from-literal=DB_USERNAME=sa \
+#     --from-literal=INTERNAL_API_KEY=YourKey \
+#     --from-literal=JWT_SECRET=YourJwtSecret \
+#     --namespace=movie-booking
+# OR apply k8s/secrets.yaml separately first.
+
+---
+# ==================== INFRASTRUCTURE ====================
+
+# ---------- SQL Server (StatefulSet + PVC) ----------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sqlserver-pvc
+  namespace: movie-booking
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sqlserver
+  namespace: movie-booking
+spec:
+  serviceName: sqlserver
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sqlserver
+  template:
+    metadata:
+      labels:
+        app: sqlserver
+    spec:
+      containers:
+        - name: sqlserver
+          image: mcr.microsoft.com/mssql/server:2022-latest
+          ports:
+            - containerPort: 1433
+          env:
+            - name: ACCEPT_EULA
+              value: "Y"
+            - name: MSSQL_PID
+              value: "Express"
+            - name: SA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: DB_PASSWORD
+          resources:
+            requests: { memory: "512Mi", cpu: "250m" }
+            limits: { memory: "1Gi", cpu: "500m" }
+          volumeMounts:
+            - name: sqlserver-storage
+              mountPath: /var/opt/mssql
+      volumes:
+        - name: sqlserver-storage
+          persistentVolumeClaim:
+            claimName: sqlserver-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sqlserver
+  namespace: movie-booking
+spec:
+  selector:
+    app: sqlserver
+  ports:
+    - port: 1433
+      targetPort: 1433
+  clusterIP: None
+
+---
+# ---------- MongoDB ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+        - name: mongodb
+          image: mongo:7.0
+          ports:
+            - containerPort: 27017
+          args: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
+          resources:
+            requests: { memory: "192Mi", cpu: "100m" }
+            limits: { memory: "256Mi", cpu: "250m" }
+          volumeMounts:
+            - name: mongo-storage
+              mountPath: /data/db
+      volumes:
+        - name: mongo-storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  namespace: movie-booking
+spec:
+  selector:
+    app: mongodb
+  ports:
+    - port: 27017
+      targetPort: 27017
+
+---
+# ---------- Redis ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          command: ["redis-server", "--maxmemory", "50mb"]
+          resources:
+            requests: { memory: "32Mi", cpu: "50m" }
+            limits: { memory: "64Mi", cpu: "100m" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: movie-booking
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+
+---
+# ---------- Zookeeper ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zookeeper
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zookeeper
+  template:
+    metadata:
+      labels:
+        app: zookeeper
+    spec:
+      containers:
+        - name: zookeeper
+          image: confluentinc/cp-zookeeper:7.6.0
+          ports:
+            - containerPort: 2181
+          env:
+            - name: ZOOKEEPER_CLIENT_PORT
+              value: "2181"
+            - name: ZOOKEEPER_TICK_TIME
+              value: "2000"
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xmx96m -Xms48m"
+          resources:
+            requests: { memory: "96Mi", cpu: "50m" }
+            limits: { memory: "150Mi", cpu: "200m" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper
+  namespace: movie-booking
+spec:
+  selector:
+    app: zookeeper
+  ports:
+    - port: 2181
+      targetPort: 2181
+
+---
+# ---------- Kafka ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+        - name: kafka
+          image: confluentinc/cp-kafka:7.6.0
+          ports:
+            - containerPort: 9092
+          env:
+            - name: KAFKA_BROKER_ID
+              value: "1"
+            - name: KAFKA_ZOOKEEPER_CONNECT
+              value: "zookeeper:2181"
+            - name: KAFKA_LISTENERS
+              value: "PLAINTEXT://0.0.0.0:9092"
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: "PLAINTEXT://kafka:9092"
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+              value: "true"
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xmx192m -Xms96m"
+          resources:
+            requests: { memory: "192Mi", cpu: "100m" }
+            limits: { memory: "280Mi", cpu: "300m" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: movie-booking
+spec:
+  selector:
+    app: kafka
+  ports:
+    - port: 9092
+      targetPort: 9092
+
+---
+# ==================== APPLICATION SERVICES ====================
+
+# ---------- Config Server (MUST start first) ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-server
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-server
+  template:
+    metadata:
+      labels:
+        app: config-server
+    spec:
+      containers:
+        - name: config-server
+          image: utkarshcoder1/movie-config-server:latest
+          ports:
+            - containerPort: 8888
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8888 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 8888 }
+            initialDelaySeconds: 60
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-server
+  namespace: movie-booking
+spec:
+  selector:
+    app: config-server
+  ports:
+    - port: 8888
+      targetPort: 8888
+
+---
+# ---------- Eureka Server ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eureka-server
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eureka-server
+  template:
+    metadata:
+      labels:
+        app: eureka-server
+    spec:
+      initContainers:
+        - name: wait-for-config-server
+          image: busybox:1.36
+          command: ['sh', '-c', 'echo Waiting for config-server...; until wget -qO- http://config-server:8888/actuator/health 2>/dev/null | grep -q UP; do sleep 5; done; echo config-server is ready!']
+      containers:
+        - name: eureka-server
+          image: utkarshcoder1/movie-eureka-server:latest
+          ports:
+            - containerPort: 8761
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8761 }
+            initialDelaySeconds: 40
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eureka-server
+  namespace: movie-booking
+spec:
+  selector:
+    app: eureka-server
+  ports:
+    - port: 8761
+      targetPort: 8761
+
+---
+# ---------- API Gateway (NodePort 30080) ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      initContainers:
+        - name: wait-for-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'echo Waiting for eureka...; until wget -qO- http://eureka-server:8761/actuator/health 2>/dev/null | grep -q UP; do sleep 5; done; echo eureka is ready!']
+      containers:
+        - name: api-gateway
+          image: utkarshcoder1/movie-api-gateway:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: movie-booking
+spec:
+  type: NodePort
+  selector:
+    app: api-gateway
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30080
+
+---
+# ---------- User Service ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      initContainers:
+        - name: wait-for-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until wget -qO- http://eureka-server:8761/actuator/health 2>/dev/null | grep -q UP; do sleep 5; done']
+      containers:
+        - name: user-service
+          image: utkarshcoder1/movie-user-service:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8081 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: movie-booking
+spec:
+  selector:
+    app: user-service
+  ports:
+    - port: 8081
+      targetPort: 8081
+
+---
+# ---------- Movie Service ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: movie-service
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: movie-service
+  template:
+    metadata:
+      labels:
+        app: movie-service
+    spec:
+      initContainers:
+        - name: wait-for-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until wget -qO- http://eureka-server:8761/actuator/health 2>/dev/null | grep -q UP; do sleep 5; done']
+      containers:
+        - name: movie-service
+          image: utkarshcoder1/movie-movie-service:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8082 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: movie-service
+  namespace: movie-booking
+spec:
+  selector:
+    app: movie-service
+  ports:
+    - port: 8082
+      targetPort: 8082
+
+---
+# ---------- Theater Service ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: theater-service
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: theater-service
+  template:
+    metadata:
+      labels:
+        app: theater-service
+    spec:
+      initContainers:
+        - name: wait-for-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until wget -qO- http://eureka-server:8761/actuator/health 2>/dev/null | grep -q UP; do sleep 5; done']
+      containers:
+        - name: theater-service
+          image: utkarshcoder1/movie-theater-service:latest
+          ports:
+            - containerPort: 8083
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8083 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: theater-service
+  namespace: movie-booking
+spec:
+  selector:
+    app: theater-service
+  ports:
+    - port: 8083
+      targetPort: 8083
+
+---
+# ---------- Show Service ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: show-service
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: show-service
+  template:
+    metadata:
+      labels:
+        app: show-service
+    spec:
+      initContainers:
+        - name: wait-for-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until wget -qO- http://eureka-server:8761/actuator/health 2>/dev/null | grep -q UP; do sleep 5; done']
+      containers:
+        - name: show-service
+          image: utkarshcoder1/movie-show-service:latest
+          ports:
+            - containerPort: 8084
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8084 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: show-service
+  namespace: movie-booking
+spec:
+  selector:
+    app: show-service
+  ports:
+    - port: 8084
+      targetPort: 8084
+
+---
+# ---------- Booking Service ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booking-service
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: booking-service
+  template:
+    metadata:
+      labels:
+        app: booking-service
+    spec:
+      initContainers:
+        - name: wait-for-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until wget -qO- http://eureka-server:8761/actuator/health 2>/dev/null | grep -q UP; do sleep 5; done']
+      containers:
+        - name: booking-service
+          image: utkarshcoder1/movie-booking-service:latest
+          ports:
+            - containerPort: 8085
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8085 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: booking-service
+  namespace: movie-booking
+spec:
+  selector:
+    app: booking-service
+  ports:
+    - port: 8085
+      targetPort: 8085
+
+---
+# ---------- Payment Service ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      initContainers:
+        - name: wait-for-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until wget -qO- http://eureka-server:8761/actuator/health 2>/dev/null | grep -q UP; do sleep 5; done']
+      containers:
+        - name: payment-service
+          image: utkarshcoder1/movie-payment-service:latest
+          ports:
+            - containerPort: 8086
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8086 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: movie-booking
+spec:
+  selector:
+    app: payment-service
+  ports:
+    - port: 8086
+      targetPort: 8086
+
+---
+# ---------- Notification Service ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      initContainers:
+        - name: wait-for-eureka
+          image: busybox:1.36
+          command: ['sh', '-c', 'until wget -qO- http://eureka-server:8761/actuator/health 2>/dev/null | grep -q UP; do sleep 5; done']
+      containers:
+        - name: notification-service
+          image: utkarshcoder1/movie-notification-service:latest
+          ports:
+            - containerPort: 8087
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8087 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: movie-booking
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - port: 8087
+      targetPort: 8087
+
+---
+# ---------- Frontend (NodePort 30000) ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      initContainers:
+        - name: wait-for-gateway
+          image: busybox:1.36
+          command: ['sh', '-c', 'until wget -qO- http://api-gateway:8080/actuator/health 2>/dev/null | grep -q UP; do sleep 5; done']
+      containers:
+        - name: frontend
+          image: utkarshcoder1/movie-frontend:latest
+          ports:
+            - containerPort: 80
+          resources:
+            requests: { memory: "32Mi", cpu: "25m" }
+            limits: { memory: "64Mi", cpu: "100m" }
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: movie-booking
+spec:
+  type: NodePort
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30000

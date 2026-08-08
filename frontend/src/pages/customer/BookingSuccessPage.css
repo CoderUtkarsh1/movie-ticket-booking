@@ -1,0 +1,144 @@
+.booking-success-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 150px);
+}
+
+.success-card {
+  width: 100%;
+  max-width: 600px;
+  padding: 3rem;
+  text-align: center;
+  border-top: 4px solid var(--success);
+}
+
+.success-icon {
+  color: var(--success);
+  margin-bottom: 1.5rem;
+  display: inline-flex;
+  animation: scaleIn 0.5s ease-out;
+}
+
+@keyframes scaleIn {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.success-title {
+  color: var(--text-main);
+  margin: 0 0 0.5rem 0;
+}
+
+.success-subtitle {
+  color: var(--text-muted);
+}
+
+.booking-reference {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  border: 1px dashed var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ref-label {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.ref-code {
+  font-size: 2rem;
+  font-family: monospace;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: 4px;
+}
+
+.ticket-details {
+  text-align: left;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ticket-header {
+  padding: 1.25rem 1.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ticket-header h3 {
+  margin: 0;
+}
+
+.badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.badge-success {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.ticket-body {
+  padding: 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.detail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.value {
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.text-primary {
+  color: var(--primary);
+}
+
+.success-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+@media (max-width: 600px) {
+  .success-card {
+    padding: 2rem 1.5rem;
+  }
+  
+  .ticket-body {
+    grid-template-columns: 1fr;
+  }
+  
+  .success-actions {
+    flex-direction: column;
+  }
+}

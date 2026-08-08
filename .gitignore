@@ -1,0 +1,72 @@
+# =====================================================
+# Root .gitignore — Movie Ticket Booking Microservices
+# =====================================================
+
+# ===== Build Output =====
+**/target/
+**/build/
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.jar
+
+# ===== IDE =====
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.vs/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+.factorypath
+
+# ===== Logs =====
+*.log
+
+# ===== OS =====
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ===== Secrets (NEVER push to Git) =====
+.env
+*.env.local
+k8s/secrets.yaml
+
+# ===== Docker Volumes (local data) =====
+sqlserver-data/
+mongo-data/
+db-backups/
+
+# ===== Personal Notes (not project code) =====
+*.md
+!README.md
+
+# ===== SQL scripts =====
+*.sql
+
+# ===== Misc junk files =====
+*.bak
+*.tmp
+conversation_log_raw.txt
+GenerateHash.java
+implementation_plan21May*
+startup_steps12June530pm
+
+
+build-and-start-services.ps1
+build-and-start-servicesold2.ps1 
+start-allold.ps1 
+# ===== Frontend =====
+frontend/node_modules/
+frontend/dist/
+
+# ===== DB Backup/Restore scripts =====
+db-backup.ps1
+db-restore.ps1    
+
+

@@ -1,0 +1,44 @@
+# API Gateway Configuration (served by config-server)
+server:
+  port: 8080
+
+spring:
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      # Routes are defined in GatewayConfig.java (with JWT filters)
+      # DO NOT add YAML routes here — it causes duplicate route conflicts
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET}
+
+# Internal API Key for Feign inter-service calls
+internal:
+  api-key: ${INTERNAL_API_KEY}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, gateway
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    com.moviebooking.apigateway: DEBUG

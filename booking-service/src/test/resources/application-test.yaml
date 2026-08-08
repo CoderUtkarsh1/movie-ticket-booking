@@ -1,0 +1,19 @@
+# Test profile — disables external dependencies (Eureka, Config Server, Kafka)
+# Testcontainers will provide real SQL Server
+spring:
+  cloud:
+    config:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  kafka:
+    bootstrap-servers: localhost:9092
+
+eureka:
+  client:
+    enabled: false
+
+internal:
+  api-key: test-api-key

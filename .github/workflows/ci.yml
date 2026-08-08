@@ -1,0 +1,217 @@
+# =====================================================
+# GitHub Actions CI/CD Pipeline
+# Movie Ticket Booking Microservices
+# =====================================================
+# Trigger: Push/PR to main or develop
+# Flow: Build → Test → Scan → Docker → Push to DockerHub
+# =====================================================
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  DOCKER_USERNAME: utkarshcoder1
+  JAVA_VERSION: '21'
+  NODE_VERSION: '20'
+
+jobs:
+  # ---- Step 1: Build common-lib (shared dependency) ----
+  build-common-lib:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build & Install common-lib
+        run: |
+          cd common-lib
+          mvn install -DskipTests -B -q
+
+      - name: Cache common-lib artifact
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/com/moviebooking/common-lib
+          key: common-lib-${{ hashFiles('common-lib/pom.xml') }}
+
+  # ---- Step 2: Build + Test all Spring Boot services (parallel) ----
+  build-and-test:
+    needs: build-common-lib
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - config-server
+          - eureka-server
+          - api-gateway
+          - user-service
+          - movie-service
+          - theater-service
+          - show-service
+          - booking-service
+          - payment-service
+          - notification-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Restore common-lib
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/com/moviebooking/common-lib
+          key: common-lib-${{ hashFiles('common-lib/pom.xml') }}
+
+      - name: Build & Install common-lib
+        run: cd common-lib && mvn install -DskipTests -B -q
+
+      - name: Build & Test ${{ matrix.service }}
+        run: |
+          cd ${{ matrix.service }}
+          chmod +x mvnw
+          ./mvnw verify -B
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_USERNAME: sa
+          DB_HOST: localhost
+          DB_PORT: 1434
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+
+      - name: Upload JaCoCo Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-${{ matrix.service }}
+          path: ${{ matrix.service }}/target/site/jacoco/
+
+  # ---- Step 3: Frontend Build + Test ----
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install & Test
+        run: |
+          cd frontend
+          npm ci
+          npm run test
+          npm run build
+
+  # ---- Step 4: Security Scan (Trivy) ----
+  security-scan:
+    needs: [build-and-test, build-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'  # Don't fail build (change to 1 to enforce)
+
+  # ---- Step 5: Build & Push Docker Images ----
+  docker-build-push:
+    needs: [build-and-test, build-frontend, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - service: config-server
+            context: .
+            dockerfile: config-server/Dockerfile
+            image: movie-config-server
+          - service: eureka-server
+            context: .
+            dockerfile: eureka-server/Dockerfile
+            image: movie-eureka-server
+          - service: api-gateway
+            context: .
+            dockerfile: api-gateway/Dockerfile
+            image: movie-api-gateway
+          - service: user-service
+            context: .
+            dockerfile: user-service/Dockerfile
+            image: movie-user-service
+          - service: movie-service
+            context: .
+            dockerfile: movie-service/Dockerfile
+            image: movie-movie-service
+          - service: theater-service
+            context: .
+            dockerfile: theater-service/Dockerfile
+            image: movie-theater-service
+          - service: show-service
+            context: .
+            dockerfile: show-service/Dockerfile
+            image: movie-show-service
+          - service: booking-service
+            context: .
+            dockerfile: booking-service/Dockerfile
+            image: movie-booking-service
+          - service: payment-service
+            context: .
+            dockerfile: payment-service/Dockerfile
+            image: movie-payment-service
+          - service: notification-service
+            context: .
+            dockerfile: notification-service/Dockerfile
+            image: movie-notification-service
+          - service: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
+            image: movie-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Build & Push ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.DOCKER_USERNAME }}/${{ matrix.image }}:latest
+            ${{ env.DOCKER_USERNAME }}/${{ matrix.image }}:${{ github.sha }}
+
+
+
+
+
+            

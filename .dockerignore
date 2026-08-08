@@ -1,0 +1,17 @@
+# Ignore for Docker build context
+**/target/
+**/node_modules/
+**/.idea/
+**/.git/
+**/*.md
+**/*.log
+**/*.sql
+**/.env
+**/dist/
+.gitignore
+docker-compose.yaml
+k6/
+db-backups/
+db-backup.ps1
+db-restore.ps1
+ 

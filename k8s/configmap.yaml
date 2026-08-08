@@ -1,0 +1,17 @@
+# =====================================================
+# ConfigMap — Non-secret configuration values
+# =====================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: movie-booking
+data:
+  DB_HOST: "sqlserver"
+  DB_PORT: "1433"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  MONGO_HOST: "mongodb"
+  MONGO_PORT: "27017"
+  EUREKA_URL: "http://eureka-server:8761/eureka/"

@@ -1,0 +1,175 @@
+.wallet-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+.wallet-balance-card {
+  padding: 2rem;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-left: 4px solid var(--primary);
+}
+
+.balance-label {
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.875rem;
+}
+
+.balance-amount {
+  font-size: 3rem;
+  margin: 0.5rem 0 0 0;
+  color: var(--primary);
+  text-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+}
+
+.add-money-form {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--glass-border);
+}
+
+.input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.currency-symbol {
+  position: absolute;
+  left: 1rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.input-group .form-control {
+  padding-left: 2rem;
+  width: 150px;
+}
+
+.transactions-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.transactions-header h3 {
+  margin: 0;
+}
+
+.transactions-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.transaction-item {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: var(--transition);
+}
+
+.transaction-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.transaction-item:last-child {
+  border-bottom: none;
+}
+
+.txn-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.icon-credit {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+}
+
+.icon-debit {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+}
+
+.txn-details {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.txn-desc {
+  margin: 0 0 0.25rem 0;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.txn-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.txn-ref {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: monospace;
+  margin-top: 0.25rem;
+}
+
+.txn-amount-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.txn-amount {
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+.txn-amount.credit {
+  color: var(--success);
+}
+
+.txn-amount.debit {
+  color: var(--danger);
+}
+
+.txn-balance {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 768px) {
+  .wallet-balance-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+  }
+  
+  .add-money-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .input-group .form-control {
+    width: 100%;
+  }
+}

@@ -1,0 +1,353 @@
+# All 7 Business Microservices
+# Same pattern: Deployment + ClusterIP Service
+# All connect to config-server + eureka + read secrets/config from K8s
+
+---
+# ===================== USER SERVICE =====================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: utkarshcoder1/movie-user-service:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8081 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: movie-booking
+spec:
+  selector:
+    app: user-service
+  ports:
+    - port: 8081
+      targetPort: 8081
+
+---
+# ===================== MOVIE SERVICE =====================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: movie-service
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: movie-service
+  template:
+    metadata:
+      labels:
+        app: movie-service
+    spec:
+      containers:
+        - name: movie-service
+          image: utkarshcoder1/movie-movie-service:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8082 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: movie-service
+  namespace: movie-booking
+spec:
+  selector:
+    app: movie-service
+  ports:
+    - port: 8082
+      targetPort: 8082
+
+---
+# ===================== THEATER SERVICE =====================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: theater-service
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: theater-service
+  template:
+    metadata:
+      labels:
+        app: theater-service
+    spec:
+      containers:
+        - name: theater-service
+          image: utkarshcoder1/movie-theater-service:latest
+          ports:
+            - containerPort: 8083
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8083 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: theater-service
+  namespace: movie-booking
+spec:
+  selector:
+    app: theater-service
+  ports:
+    - port: 8083
+      targetPort: 8083
+
+---
+# ===================== SHOW SERVICE =====================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: show-service
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: show-service
+  template:
+    metadata:
+      labels:
+        app: show-service
+    spec:
+      containers:
+        - name: show-service
+          image: utkarshcoder1/movie-show-service:latest
+          ports:
+            - containerPort: 8084
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8084 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: show-service
+  namespace: movie-booking
+spec:
+  selector:
+    app: show-service
+  ports:
+    - port: 8084
+      targetPort: 8084
+
+---
+# ===================== BOOKING SERVICE =====================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booking-service
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: booking-service
+  template:
+    metadata:
+      labels:
+        app: booking-service
+    spec:
+      containers:
+        - name: booking-service
+          image: utkarshcoder1/movie-booking-service:latest
+          ports:
+            - containerPort: 8085
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8085 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: booking-service
+  namespace: movie-booking
+spec:
+  selector:
+    app: booking-service
+  ports:
+    - port: 8085
+      targetPort: 8085
+
+---
+# ===================== PAYMENT SERVICE =====================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      containers:
+        - name: payment-service
+          image: utkarshcoder1/movie-payment-service:latest
+          ports:
+            - containerPort: 8086
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8086 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: movie-booking
+spec:
+  selector:
+    app: payment-service
+  ports:
+    - port: 8086
+      targetPort: 8086
+
+---
+# ===================== NOTIFICATION SERVICE =====================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: movie-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: utkarshcoder1/movie-notification-service:latest
+          ports:
+            - containerPort: 8087
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server:8888"
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          resources:
+            requests: { memory: "256Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "300m" }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8087 }
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: movie-booking
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - port: 8087
+      targetPort: 8087
