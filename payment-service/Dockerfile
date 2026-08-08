@@ -3,8 +3,10 @@ WORKDIR /build
 
 COPY common-lib/pom.xml common-lib/pom.xml
 COPY common-lib/src common-lib/src
+COPY common-lib/mvnw common-lib/mvnw
+COPY common-lib/.mvn common-lib/.mvn
 RUN --mount=type=cache,target=/root/.m2 \
-    cd common-lib && mvn install -DskipTests -B -q
+    cd common-lib && chmod +x mvnw && ./mvnw install -DskipTests -B -q
 
 COPY payment-service/.mvn payment-service/.mvn
 COPY payment-service/mvnw payment-service/mvnw
