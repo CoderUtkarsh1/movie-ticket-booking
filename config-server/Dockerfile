@@ -8,11 +8,13 @@ WORKDIR /build
 # Copy common-lib first (shared dependency)
 COPY common-lib/pom.xml common-lib/pom.xml
 COPY common-lib/src common-lib/src
+COPY common-lib/mvnw common-lib/mvnw
+COPY common-lib/.mvn common-lib/.mvn
 
 # Install common-lib to local Maven repo
 RUN --mount=type=cache,target=/root/.m2 \
-    cd common-lib && \
-    mvn install -DskipTests -B -q
+    cd common-lib && chmod +x mvnw && \
+    ./mvnw install -DskipTests -B -q
 
 # Copy service files
 COPY config-server/.mvn config-server/.mvn
